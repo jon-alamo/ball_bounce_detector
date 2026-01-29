@@ -1,55 +1,54 @@
 # Ball bounce detector
-Esta aplicación consiste en un detector de cambios de dirección de una pelota de pádel a partir de un dataset obtenido en el que la pelota se ha etiquetado para cada frame. La pelota viene dada en cada frame por las coordenadas de su centro, "x" e "y" en píxeles siendo "x" el número de píxeles en horizontal desde la esquina superior izquierda de la imagen hacia la derecha y el eje "y" el número de píxeles desde la esquina superior izquierda en vertical hacia abajo.
+This application consists of a detector for direction changes of a padel ball based on a dataset where the ball has been labeled for each frame. The ball is given in each frame by the coordinates of its center, "x" and "y" in pixels, where "x" is the number of pixels horizontally from the top-left corner of the image to the right, and the "y" axis is the number of pixels from the top-left corner vertically downwards.
 
-El dataset de origen se encuentra en el directorio "datasets/2022-master-finals-fem" y contiene 2 archivos:
+The source dataset is located in the "datasets/2022-master-finals-fem" directory and contains 2 files:
 
-- El dataset original con todos los datos anotados "datasets/2022-master-finals-fem/2022-master-finals-fem.csv"
-- Un archivo de muestra creado manualmente para validar el resultado del detector para una serie de frames.
+- The original dataset with all annotated data "datasets/2022-master-finals-fem/2022-master-finals-fem.csv"
+- A sample file created manually to validate the detector result for a series of frames.
 
-Los archivos tienen la siguiente estructura.
+The files have the following structure.
 
-## Arhivos dataset
+## Dataset files
 
-### Dataset original
+### Original Dataset
 
-Archivo situado en "datasets/2022-master-finals-fem/2022-master-finals-fem.csv" con las siguientes columnas (marco solo las relevantes para la tarea en cuestión):
+File located at "datasets/2022-master-finals-fem/2022-master-finals-fem.csv" with the following columns (marking only those relevant to the task in question):
 
-- Número de fila -1: número de frame
-- has_shot: si algún jugador está efectuando un golpe sobre la pelota. Abarca desde la preparación del golpe hasta el acabado y el contacto entre la pala y la pelota se suele producir en algún frame intermedio.
-- category: la categoría del golpe. Puede ser "Serve", "Forehand", "Backhand", "Smash" y "Other".
-- ball_center_x: coordenada "x" en píxeles del centro de la bola.
-- ball_center_y: coordenada "y" en píxeles del centro de la bola.
-- serving: iniciales del jugador que está sacando en ese juego.
-- serving_team: el equipo que está sacando: "a" o "b"
-- upper_team: el equipo que está jugando arriba en la imagen o en la zona "más alejada" de la cámara.
-- lower_team: el equipo que está jugando abajo en la imagen o en la zona "más cercana" de la cámara.
-- team_shot: el equipo que está efectuando el golpe si has_shot vale 1.
-- player_<a/b>_<left/drive>_<x/y/w/h>: bbox de cada jugador (equipo a o b, posición left o drive, coordenada x, y, w y h de la bbox)
-- time: el tiempo en segundos correspondiente al cada frame.
-- shot_result: el resultado del golpeo efectuado en caso de que has_shot sea 1. Puede valer 1 si el golpeo es bueno y el juego continua, 0 si el golpeo es malo y se acaba el punto, 2 si el golpeo es winner y también se acaba el punto.
-
-
-### Archivo de muestra de rebotes
-
-Archivo situado en "datasets/2022-master-finals-fem/2022-master-finals-fem-bounces-sample.csv" que contiene en qué frames se 
-producen rebotes de la pelota. Contiene una sola columna llamada "bounce_frame" e indica que en ese frame hay un rebote. Se considera rebote cualquier cambio de dirección que sufra la pelota tras impactar con cualquier superficie. Puede ser la propia pala de un jugador durante un golpeo, el rebote en el suelo, cristales o vallas. Hay que distinguir este tipo de movimiento del propio cambio de dirección sufrido por el efecto de la gravedad.
+- Row number -1: frame number
+- has_shot: whether a player is making a shot on the ball. It covers from the preparation of the shot to the finish, and the contact between the racket and the ball usually occurs in some intermediate frame.
+- category: the category of the shot. Can be "Serve", "Forehand", "Backhand", "Smash", and "Other".
+- ball_center_x: "x" coordinate in pixels of the ball center.
+- ball_center_y: "y" coordinate in pixels of the ball center.
+- serving: initials of the player serving in that game.
+- serving_team: the team that is serving: "a" or "b".
+- upper_team: the team playing at the top of the image or in the area "farthest" from the camera.
+- lower_team: the team playing at the bottom of the image or in the area "closest" to the camera.
+- team_shot: the team making the shot if has_shot is 1.
+- player_<a/b>_<left/drive>_<x/y/w/h>: bbox of each player (team a or b, position left or drive, coordinates x, y, w, and h of the bbox).
+- time: the time in seconds corresponding to each frame.
+- shot_result: the result of the shot made if has_shot is 1. Can be 1 if the shot is good and play continues, 0 if the shot is bad and the point ends, 2 if the shot is a winner and the point also ends.
 
 
-### Objetivo de la aplicación
+### Bounces Sample File
 
-El objetivo de la aplicación es maximizar una función objetivo, que he definido como:
-
-FO = TP / (TP + FP + FN) donde:
-
-TP: true positives -> rebote detectado en momento oportuno
-FP: false positives -> rebote detectado cuando no hay rebote
-FN: false negatives -> rebote real no detectado
-
-De esta manera, la función valdrá 1 sólo cuando se detecten todos y únicamente los rebotes reales.
+File located at "datasets/2022-master-finals-fem/2022-master-finals-fem-bounces-sample.csv" which contains in which frames ball bounces occur. Contains a single column called "bounce_frame" and indicates that there is a bounce in that frame. A bounce is considered any change of direction suffered by the ball after impacting any surface. It can be a player's racket during a shot, the bounce on the floor, glass, or fences. This type of movement must be distinguished from the change of direction suffered by the effect of gravity itself.
 
 
-### Consideraciones
+### Application Objective
 
-Las anotaciones de la posición de la pelota están hechas de manera manual, por lo que existe un ruido inerente a la trayectoria de la bola causada por pequeños errores a la hora de introducir los datos. Además, según la pelota vaya en una dirección u otra, el rebote se hace mucho más evidente o menos. Por ejemplo, si la pelota va en una dirección perpendicular a la propia pantalla, su centro casi se mantendrá sin movimiento y al rebotar puede que tampoco se note un cambio de dirección excesivo. Sin embargo, con el ojo humano se podría detectar más del 95% de los rebotes en cada momento por lo que yo creo que tiene que existir alguna manera de detectar con una precisión similar en qué frames la pelota rebota realmente.
+The objective of the application is to maximize an objective function, which I have defined as:
 
-Además, se puede aceptar un margen de frames en los que se consideraría un "TP", por ejemplo, si el rebote se detecta y está a 1 frame de distancia del rebote real se consideraría como un "TP".
+FO = TP / (TP + FP + FN) where:
+
+TP: true positives -> bounce detected at the right moment
+FP: false positives -> bounce detected when there is no bounce
+FN: false negatives -> real bounce not detected
+
+In this way, the function will be equal to 1 only when all and only real bounces are detected.
+
+
+### Considerations
+
+The ball position annotations are made manually, so there is inherent noise in the ball trajectory caused by small errors when entering the data. Furthermore, depending on the direction the ball is going, the bounce becomes much more evident or less so. For example, if the ball is going in a direction perpendicular to the screen itself, its center will remain almost motionless, and upon rebounding, an excessive change of direction may not be noticed either. However, with the human eye, more than 95% of bounces could be detected at any moment, so I believe there must be some way to detect with similar precision in which frames the ball actually bounces.
+
+In addition, a margin of frames can be accepted in which a "TP" would be considered; for example, if the bounce is detected and is 1 frame away from the real bounce, it would be considered a "TP".

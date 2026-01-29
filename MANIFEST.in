@@ -1,0 +1,2 @@
+include requirements.txt
+recursive-include bounce_detector/assets *.pkl
