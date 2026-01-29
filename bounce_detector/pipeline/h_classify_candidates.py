@@ -6,68 +6,60 @@ import os
 
 def extract_features(df, candidate_frame, window=5):
     """
-    Extracts a feature vector for a given candidate frame including neighbors.
-    Features: vx, vy, ax, ay, ang_v, mod_v, ang_a, mod_a over the window.
+    Extracts a feature vector for a candidate frame from its temporal window.
+    Features: Flattened array of velocity and acceleration (XY and Polar) over [t-w, t+w].
     """
     start = candidate_frame - window
     end = candidate_frame + window
     
-    # Check boundaries
     if start < 0 or end >= len(df):
         return None
 
-    # Columns required for the classifier
-    # Ensure these match what the model was trained on
-    # Correct names matching b_compute_polar.py
-    cols = ['vel_x', 'vel_y', 'acc_x', 'acc_y', 'vel_angle', 'vel_module', 'acc_angle', 'acc_module']
+    # Required feature columns (order matters for the trained model)
+    cols = ['vel_x', 'vel_y', 'acc_x', 'acc_y', 
+            'vel_angle', 'vel_module', 'acc_angle', 'acc_module']
     
-    # Check if cols exist, fill missing with 0 or handle error
-    # For robust pipeline, we assume these computed columns exist.
-    missing_cols = [c for c in cols if c not in df.columns]
-    if missing_cols:
-        # If polar features are missing (e.g. XY pipeline), we can't use this classifier 
-        # unless we re-train specifically for XY features. 
-        # For now, we return None to skip or warn.
+    # Verify existence
+    if not all(c in df.columns for c in cols):
         return None
     
     subset = df.iloc[start:end+1][cols]
     
-    # Flatten: [vx_t-5, ..., vx_t, ..., vx_t+5, vy_t-5, ...]
-    feature_vector = subset.values.flatten()
-    
-    return feature_vector
+    # Flatten -> [v_x_0, v_y_0, ..., v_x_N, v_y_N, ...] if flattened by row, 
+    # but pandas values.flatten() is row-major by default (C-style).
+    # Ensure this matches training logic.
+    return subset.values.flatten()
 
 
 def classify_candidates(df, model_path=None, window=5):
     """
-    Filters detected bounces ('is_bounce_detected' == 1) using a pre-trained ML model.
-    Only candidates predicted as '1' (Real Bounce) are kept.
+    Validates detected bounces using a pre-trained Random Forest classifier.
+    Candidates predicted as 'False' (0) are discarded.
     """
+    # Resolve default model path
     if model_path is None:
-        # Default to assets folder relative to this file
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        # Go up one level from 'pipeline' to 'bounce_detector' then into 'assets'
         model_path = os.path.join(current_dir, '..', 'assets', 'bounce_classifier.pkl')
 
     if not os.path.exists(model_path):
-        print(f"Warning: Model not found at {model_path}. Skipping classification.")
+        import warnings
+        warnings.warn(f"Model not found at {model_path}. Skipping classification step.")
         return df
 
-    df = df.copy()
-    
-    # Load model (consider caching this if performance is critical or loading once globally)
     try:
         clf = joblib.load(model_path)
     except Exception as e:
-        print(f"Error loading model: {e}")
+        import warnings
+        warnings.warn(f"Failed to load model: {e}")
         return df
     
+    df = df.copy()
     detected_indices = df.index[df['is_bounce_detected'] == 1].tolist()
     
     if not detected_indices:
         return df
         
-    # Prepare batch features
+    # Extract features for all candidates
     X = []
     valid_indices = []
     
@@ -77,25 +69,20 @@ def classify_candidates(df, model_path=None, window=5):
             X.append(features)
             valid_indices.append(idx)
         else:
-            # If we can't extract features (e.g. edge of video), 
-            # we might choose to keep it (conservative) or drop it.
-            # Here we keep it to avoid deleting valid start/end bounces.
-            pass
+            # Keep candidates at boundaries where features cannot be extracted
+            # (Conservative approach: better a false positive than missing a real bounce)
+            continue
             
     if not X:
         return df
         
-    X = np.array(X)
+    # Run inference
+    predictions = clf.predict(np.array(X))
     
-    # Verify shape matches model expectation
-    # (Optional robust check could go here)
+    # Filter out rejected candidates
+    rejected_indices = [idx for idx, pred in zip(valid_indices, predictions) if pred == 0]
     
-    # Predict
-    preds = clf.predict(X)
-    
-    # Apply results
-    for i, idx in enumerate(valid_indices):
-        if preds[i] == 0:  # Classified as False Positive (Ghost)
-            df.at[idx, 'is_bounce_detected'] = 0
+    if rejected_indices:
+        df.loc[rejected_indices, 'is_bounce_detected'] = 0
             
     return df
