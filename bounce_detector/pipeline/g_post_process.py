@@ -1,6 +1,6 @@
 import pandas as pd
 
-def post_process(df, shot_bounce=0.5):
+def post_process(df, shot_bounce=0.5, method='default'):
     """
     Refines detections based on game mechanics (shot categories).
     
@@ -37,22 +37,28 @@ def post_process(df, shot_bounce=0.5):
                 last_bounce_idx = detected_indices[-1]
                 df.at[last_bounce_idx, 'is_bounce_detected'] = 1
             else:
-                # Fallback: Frame where ball is lowest (max y value)
-                max_y_idx = group['ball_center_y'].idxmax()
-                df.at[max_y_idx, 'is_bounce_detected'] = 1
+                # Fallback: Frame where ball is highest (min y value)
+                min_y_idx = group['ball_center_y'].idxmin()
+                df.at[min_y_idx, 'is_bounce_detected'] = 1
         
         else:
             # Rule: Normal shot
             if detected_indices:
                 # Keep original detections
                 df.loc[detected_indices, 'is_bounce_detected'] = 1
-            else:
+            elif method=='default':
                 # Fallback: Heuristic placement based on shot duration
                 offset = int(len(group) * shot_bounce)
                 heuristic_idx = idx_start + offset
                 # Ensure we don't go out of bounds of the group
                 heuristic_idx = min(heuristic_idx, idx_end)
                 df.at[heuristic_idx, 'is_bounce_detected'] = 1
+            elif method == 'score':
+                # Fallback: Choose frame with highest bounce score
+                # Assuming 'bounce_score' column exists
+                best_idx = group['bounce_score'].idxmax()
+                df.at[best_idx, 'is_bounce_detected'] = 1
+
     
     df.drop(columns=['shot_group'], inplace=True)
     return df

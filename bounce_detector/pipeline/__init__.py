@@ -73,7 +73,7 @@ def run_pipeline_polar(df, xw, yw, xvw, yvw, avw=1, mvw=1, aaw=1, maw=1, mf=0.5,
 
 
 
-def run_pipeline_full(df, xw=1, yw=1, xvw=1, yvw=1, xaw=1, yaw=1, avw=1, mvw=1, aaw=1, maw=1, mf=0.5, dfx=1, dfy=1, dfa=1, dfm=1, xat=30, yat=30, aat=30, mat=30, sha=0, mew=3, sb=0.5, use_classifier=False):
+def run_pipeline_full(df, xw=1, yw=1, xvw=1, yvw=1, xaw=1, yaw=1, avw=1, mvw=1, aaw=1, maw=1, mf=0.5, dfx=1, dfy=1, dfa=1, dfm=1, xat=30, yat=30, aat=30, mat=30, sha=0, mew=3, sb=0.5, use_classifier=True):
     """ Run the full data processing pipeline on the input dataframe.
     Parameters:
         df (pd.DataFrame): Input DataFrame containing ball position data.

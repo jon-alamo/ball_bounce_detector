@@ -1,3 +1,5 @@
+import typing as typ
+import pandas as pd
 from bounce_detector.pipeline import run_pipeline_full
 from bounce_detector.config import Columns
 
@@ -29,7 +31,7 @@ BEST_MODEL_PARAMS = {
 
 
 
-def detect_bounces(df, columns: dict):
+def detect_bounces(df, columns: typ.Dict[str, str] | None = None) -> pd.DataFrame:
     """ Detect bounces in the input dataframe by using 
     following required data with default values:
     - ball_x_center_col: int = 'ball_center_x'
@@ -59,7 +61,8 @@ def detect_bounces(df, columns: dict):
         df (pd.DataFrame): Input DataFrame containing ball position data.
         columns (dict): Dictionary mapping required column keys to actual column names in df.
     """
-    for key, name in columns.items():
-        setattr(Columns, key, name)    
+    if isinstance(columns, dict):
+        for key, name in columns.items():
+            setattr(Columns, key, name)    
     df = run_pipeline_full(df, **BEST_MODEL_PARAMS)
     return df
